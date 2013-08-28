@@ -1,30 +1,89 @@
+#!/usr/bin/env ruby
+
+SCRIPT = "entries_by_blog"
+APP = 'scprv4'
+
+load File.expand_path("../../util/setup.rb", __FILE__)
+
 require "csv"
+require 'time'
+require 'optparse'
+require 'ostruct'
+require 'net/http'
+require 'uri'
 
-filename = "represent"
+options = OpenStruct.new
 
-blogs = [
-  "politics"
-]
+# Defaults
+options.fileprefix  = "entries_by_blog"
+options.upper       = Time.now
 
-Rails.application.default_url_options[:host] = "http://scpr.org"
 
-low  = Time.new(2013, 7, 1, 0, 0, 0) - 1
-high = Time.new(2013, 7, 31, 0, 0, 0) - 1
+OptionParser.new do |opts|
+  opts.banner = "Get a list of entries for individual blogs within a "\
+                "range of dates. Output files are placed in the Rails " \
+                "project's log directory. " \
+                "Usage: rails r entries_by_blog.rb [options]"
 
-#------------------
+  opts.on('-l', '--lower LOWER',
+    "Beginning of date range, in ISO-format (YYYY-MM-DD)."
+  ) do |lower|
+    options.lower = Time.parse(lower)
+  end
+
+  opts.on('-b', '--blogs BLOGS',
+    "A comma-separated list of blogs (slugs) on which to perform the task."
+  ) do |blogs|
+    options.blogs = blogs.split(',')
+  end
+
+  opts.on('-u', '--upper [UPPER]',
+    "End of date range, in ISO-format (YYYY-MM-DD) (default: now)."
+  ) do |upper|
+    options.upper = Time.parse(upper)
+  end
+
+  opts.on('-p', '--prefix [PREFIX]',
+    "The filename prefix. (default 'entries_by_blog')"
+  ) do |prefix|
+    options.prefix = prefix
+  end
+
+  opts.on_tail('-h', '--help',
+    "Show this message."
+  ) do
+    puts opts
+    exit
+  end
+end.parse!(ARGV)
+
+raise(ArgumentError, "At least one blog must be specified.") if !options.blogs
+raise(ArgumentError, "The lower date limit must be specified.") if !options.lower
+
+
 
 rows = []
 
-blogs.each do |blog|
+puts "Generating CSV..."
+
+options.blogs.each do |blog|
   blog = Blog.find_by_slug(blog)
 
-  blog.entries.where("published_at > :low and published_at <= :high", low: low, high: high).published.reorder("published_at").each do |entry|
+  blog.entries.where(
+    "published_at > :low and published_at <= :high", low: options.lower, high: options.upper
+  ).published.reorder("published_at").each do |entry|
     rows.push [entry.published_at, entry.to_title, entry.byline, entry.public_url]
   end
 end
 
-CSV.open(Rails.root.join("log", "#{filename}-#{Time.now.strftime("%F")}.csv"), "a+") do |csv|
+filename = "#{options.fileprefix}-#{Time.now.strftime("%F")}.csv"
+filepath = Rails.root.join("log", filename)
+CSV.open(filepath, "w+") do |csv|
   rows.each do |row|
     csv << row
   end
 end
+
+puts "Finished. Saved to #{filepath}"
+
+GistUpload.handle(filename, File.read(filepath))
