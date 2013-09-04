@@ -1,3 +1,6 @@
+require 'net/http'
+require 'uri'
+
 module GistUpload
   def self.handle(filename, content)
     print "Upload to Gist? (y/n): "
