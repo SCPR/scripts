@@ -15,7 +15,7 @@ require 'uri'
 options = OpenStruct.new
 
 # Defaults
-options.fileprefix  = "entries_by_blog"
+options.fileprefix  = SCRIPT
 options.upper       = Time.now
 
 
@@ -46,7 +46,7 @@ OptionParser.new do |opts|
   opts.on('-p', '--prefix [PREFIX]',
     "The filename prefix. (default 'entries_by_blog')"
   ) do |prefix|
-    options.prefix = prefix
+    options.fileprefix = prefix
   end
 
   opts.on_tail('-h', '--help',
