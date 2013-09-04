@@ -21,8 +21,9 @@ options.upper       = Time.now
 
 OptionParser.new do |opts|
   opts.banner = "Get a list of entries for individual blogs within a "\
-                "range of dates. Output files are placed in the Rails " \
-                "project's log directory. " \
+                "range of dates.\n" \
+                "Output files are placed in the Rails " \
+                "project's log directory.\n" \
                 "Usage: rails r entries_by_blog.rb [options]"
 
   opts.on('-l', '--lower LOWER',

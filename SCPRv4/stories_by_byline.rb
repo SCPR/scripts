@@ -19,9 +19,9 @@ options.classes     = ["NewsStory", "BlogEntry", "ShowSegment"]
 options.filemode    = "w+"
 
 OptionParser.new do |opts|
-  opts.banner = "Get a list of stories by their byline. " \
+  opts.banner = "Get a list of stories by their byline.\n" \
                 "Output files are placed in the Rails " \
-                "project's log directory. " \
+                "project's log directory.\n" \
                 "Usage: ./stories_by_byline.rb [options]"
 
   opts.on('-c', '--classes [CLASSES]',
