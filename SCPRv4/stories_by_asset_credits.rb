@@ -67,11 +67,11 @@ Maya Sugarman : 2013-06-01 - 2013-08-31
 EOS
 
 headers = [
-    "Publish Date",
-    "Title",
-    "URL",
-    "Byline"
-  ]
+  "Publish Date",
+  "Title",
+  "URL",
+  "Byline"
+]
 
 
 #----------------------------
