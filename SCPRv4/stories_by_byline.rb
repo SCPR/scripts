@@ -17,6 +17,7 @@ options = OpenStruct.new
 options.fileprefix  = SCRIPT
 options.classes     = ["NewsStory", "BlogEntry", "ShowSegment"]
 options.filemode    = "w+"
+options.headers     = true
 
 OptionParser.new do |opts|
   opts.banner = "Get a list of stories by their byline.\n" \
@@ -41,6 +42,13 @@ OptionParser.new do |opts|
     "The filename to use. This overrides the prefix option."
   ) do |filename|
     options.filename = filename
+  end
+
+  opts.on('-e', '--headers [HEADERS]',
+    "A boolean for whether or not to include headers in the CSV. " \
+    "(default: #{options.headers})"
+  ) do |headers|
+    options.headers = %w{1 true}.include?(headers)
   end
 
   opts.on('-m', '--mode [MODE]',
@@ -97,7 +105,7 @@ headers = [
   "Publish Date",
   "Title",
   "URL",
-  "Byline"
+  "Reporter"
 ]
 
 
@@ -178,7 +186,7 @@ user_ranges.each do |range|
       content.published_at,
       content.to_title,
       content.public_url,
-      content.byline
+      range[:user].name
     ]
   end
 end
@@ -197,7 +205,7 @@ nobio_ranges.each do |range|
       content.published_at,
       content.to_title,
       content.public_url,
-      content.byline
+      range[:name]
     ]
   end
 end
@@ -220,7 +228,7 @@ taketwo_withbio_ranges.each do |range|
       content.published_at,
       content.to_title,
       content.public_url,
-      content.byline
+      range[:user].name
     ]
   end
 end
@@ -243,7 +251,7 @@ taketwo_nobio_ranges.each do |range|
       content.published_at,
       content.to_title,
       content.public_url,
-      content.byline
+      range[:name]
     ]
   end
 end
@@ -254,8 +262,8 @@ end
 
 filename = options.filename || "#{options.fileprefix}-#{Time.now.strftime("%F")}.csv"
 filepath = Rails.root.join("log", filename)
-CSV.open(filepath, options.filemode, headers: true) do |csv|
-  csv << headers
+CSV.open(filepath, options.filemode, headers: options.headers) do |csv|
+  csv << headers if options.headers
 
   rows.each do |row|
     csv << row

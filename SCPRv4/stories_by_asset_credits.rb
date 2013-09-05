@@ -17,6 +17,7 @@ options = OpenStruct.new
 options.fileprefix  = SCRIPT
 options.classes     = ["NewsStory", "BlogEntry", "ShowSegment"]
 options.filemode    = "w+"
+options.headers     = true
 
 OptionParser.new do |opts|
   opts.banner = "Get a list of stories by their asset credits.\n" \
@@ -49,6 +50,13 @@ OptionParser.new do |opts|
     options.filemode = mode
   end
 
+  opts.on('-e', '--headers [HEADERS]',
+    "A boolean for whether or not to include headers in the CSV. " \
+    "(default: #{options.headers})"
+  ) do |headers|
+    options.headers = %w{1 true}.include?(headers)
+  end
+
   opts.on_tail('-h', '--help',
     "Show this message."
   ) do
@@ -70,7 +78,7 @@ headers = [
   "Publish Date",
   "Title",
   "URL",
-  "Byline"
+  "Reporter"
 ]
 
 
@@ -114,7 +122,7 @@ user_ranges.each do |range|
           article.published_at,
           article.to_title,
           article.public_url,
-          article.byline
+          range[:user].name
         ]
       end
     end
@@ -127,8 +135,8 @@ end
 
 filename = options.filename || "#{options.fileprefix}-#{Time.now.strftime("%F")}.csv"
 filepath = Rails.root.join("log", filename)
-CSV.open(filepath, options.filemode, headers: true) do |csv|
-  csv << headers
+CSV.open(filepath, options.filemode, headers: options.headers) do |csv|
+  csv << headers if options.headers
 
   rows.each do |row|
     csv << row
