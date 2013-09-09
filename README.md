@@ -17,12 +17,16 @@ first run `rvm use 1.9.3@scprv4`. Also recommended is simply placing an `.rvmrc`
 file in the SCPRv4 directory in this repository (please don't commit it).
 
 
+You'll need to define `PROJECT_HOME` in your bash environment. This is so the 
+scripts know where to find your projects. It assumes they're all in the same
+directory.
+
+
 ### New scripts
 
 * Specify the shebang at the top of the file. See other scripts for an example.
 * Use `OptionsParser` to accept some arguments, unless the script is *really*
 specialized. Either way, save the script here.
-* Make sure you have `PROJECT_HOME` defined in your bash environment.
 * Set `APP` to the name of the directory where the target application lives.
 * Set `SCRIPT` to the name of the script.
 * Require the `util/setup.rb` file - this will load the rails environment.
