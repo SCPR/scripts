@@ -27,7 +27,8 @@ OptionParser.new do |opts|
                 "Usage: rails r entries_by_blog.rb [options]"
 
   opts.on('-l', '--lower LOWER',
-    "Beginning of date range, in ISO-format (YYYY-MM-DD)."
+    "Beginning of date range, in ISO-format (YYYY-MM-DD). Time is assumed " \
+    "to be midnight."
   ) do |lower|
     options.lower = Time.parse(lower)
   end
@@ -39,7 +40,8 @@ OptionParser.new do |opts|
   end
 
   opts.on('-u', '--upper [UPPER]',
-    "End of date range, in ISO-format (YYYY-MM-DD) (default: now)."
+    "End of date range, in ISO-format (YYYY-MM-DD). Time is assumed to be " \
+    "midnight. (default: now)."
   ) do |upper|
     options.upper = Time.parse(upper)
   end
@@ -68,12 +70,19 @@ rows = []
 puts "Generating CSV..."
 
 options.blogs.each do |blog|
-  blog = Blog.find_by_slug(blog)
+  blog = Blog.find_by_slug!(blog)
 
   blog.entries.where(
-    "published_at > :low and published_at <= :high", low: options.lower, high: options.upper
+    "published_at > :low and published_at <= :high", 
+    :low    => options.lower,
+    :high   => options.upper
   ).published.reorder("published_at").each do |entry|
-    rows.push [entry.published_at, entry.to_title, entry.byline, entry.public_url]
+    rows.push [
+      entry.published_at,
+      entry.to_title,
+      entry.byline,
+      entry.public_url
+    ]
   end
 end
 
