@@ -13,13 +13,16 @@ what the options are. Not all scripts have been converted to this format yet.
 
 When running a script, you should be running it in the same RVM environment
 as the target application. So if you want to run a script for SCPRv4, you should
-first run `rvm use 1.9.3@scprv4`. Also recommended is simply placing an `.rvmrc`
+first run `rvm use 1.9.3@scprv4`. Also recommended is simply placing a `.ruby-version`
 file in the SCPRv4 directory in this repository (please don't commit it).
 
+You'll need to define `PROJECT_HOME` in your bash/zsh/whatever environment.
+This is so the scripts know where to find your projects. It assumes they're all
+in the same directory:
 
-You'll need to define `PROJECT_HOME` in your bash environment. This is so the 
-scripts know where to find your projects. It assumes they're all in the same
-directory.
+```
+echo "export PROJECT_HOME=/path/to/your/projects" >> ~/.bash_profile
+```
 
 
 ### New scripts
