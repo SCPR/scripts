@@ -18,6 +18,7 @@ options.fileprefix  = SCRIPT
 options.classes     = ["NewsStory", "BlogEntry", "ShowSegment"]
 options.filemode    = "w+"
 options.headers     = true
+options.datafile    = File.expand_path("../data/names.txt", __FILE__)
 
 OptionParser.new do |opts|
   opts.banner = "Get a list of stories by their byline.\n" \
@@ -42,6 +43,12 @@ OptionParser.new do |opts|
     "The filename to use. This overrides the prefix option."
   ) do |filename|
     options.filename = filename
+  end
+
+  opts.on('-d', '--data [FILENAME]',
+    "The filename containing the data to parse. (default: data/names.txt)"
+  ) do |datafile|
+    options.datafile = datafile
   end
 
   opts.on('-e', '--headers [HEADERS]',
@@ -69,29 +76,7 @@ end.parse!(ARGV)
 
 byline_regex = /^(?<name>.+?) \((?<start>.+?)-(?<end>.+?)\)$/
 
-names = <<-EOS
-Erika Aguilar (September 1-November 30)
-Leslie Berestein Rojas (September 1-November 30)
-Annie Gilbertson (September 1-November 30)
-Adolfo Guzman-Lopez (September 1-November 30)
-Josie Huang (September 1-November 30)
-Jed Kim (September 1-November 30)
-Rina Palta (September 1-November 30)
-Jose Luis Jiménez (September 1-November 30)
-Evelyn Larrubia (September 1-November 30)
-Mae Ryan (September 1-November 30)
-Maya Sugarman (September 1-November 30)
-A Martínez (September 1-November 30)
-Leo Duran (September 1-November 30)
-Laura Krantz (September 1-November 30)
-Jacob Margolis (September 1-November 30)
-Ashley Alvarado (September 1-November 30)
-Michelle Lanz (September 1-November 30)
-Jon White (September 1-November 30)
-Stephen Hoffman (September 1-November 30)
-Gordon Henderson (September 1-November 30)
-Kristen Lepore (September 1-November 30)
-EOS
+names = File.open(options.datafile)
 
 headers = [
   "Publish Date",
@@ -108,7 +93,9 @@ puts "Generating CSV..."
 
 rows = []
 
-names.split("\n").each do |row|
+names.each do |row|
+  next if row.empty?
+
   match = row.match(byline_regex)
 
   if !match
