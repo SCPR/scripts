@@ -27,7 +27,7 @@ OptionParser.new do |opts|
 
   opts.on('-c', '--classes [CLASSES]',
     "A comma-separated list of classes through which to search. " \
-    "(default: #{options.classes.join(',')}"
+    "(default: #{options.classes.join(',')})"
   ) do |classes|
     options.classes = classes.split(',')
   end
@@ -67,38 +67,30 @@ end.parse!(ARGV)
 
 
 
-byline_regex = /^(?<name>.+?) \: (?<start>[\d-]+) - (?<end>[\d-]+)$/
+byline_regex = /^(?<name>.+?) \((?<start>.+?)-(?<end>.+?)\)$/
 
-normal_withbio = <<-EOS
-Erika Aguilar : 2013-06-01 - 2013-08-31
-Leslie Berestein Rojas : 2013-06-01 - 2013-08-31
-Adolfo Guzman-Lopez : 2013-06-01 - 2013-08-31
-Rina Palta : 2013-06-01 - 2013-08-31
-Jose Luis Jiménez : 2013-06-01 - 2013-08-31
-Evelyn Larrubia : 2013-06-01 - 2013-08-31
-Ashley Alvarado : 2013-06-01 - 2013-08-31
-Michelle Lanz : 2013-06-01 - 2013-08-31
-Jon White : 2013-06-01 - 2013-08-31
-EOS
-
-normal_nobio = <<-EOS
-Annie Gilbertson : 2013-08-12 - 2013-08-31
-Jed Kim : 2013-06-01 - 2013-08-31
-Gordon Henderson : 2013-07-01 - 2013-08-31
-Kristen Lepore : 2013-06-01 - 2013-08-31
-Steve Martin : 2013-06-01 - 2013-08-30
-EOS
-
-taketwo_withbio = <<-EOS
-A Martínez : 2013-06-01 - 2013-08-31
-Leo Duran : 2013-06-01 - 2013-08-31
-Josie Huang : 2013-06-01 - 2013-08-31
-Laura Krantz : 2013-06-01 - 2013-08-31
-Jacob Margolis : 2013-06-01 - 2013-08-31
-EOS
-
-taketwo_nobio = <<-EOS
-Stephen Hoffman : 2013-06-01 - 2013-08-31
+names = <<-EOS
+Erika Aguilar (September 1-November 30)
+Leslie Berestein Rojas (September 1-November 30)
+Annie Gilbertson (September 1-November 30)
+Adolfo Guzman-Lopez (September 1-November 30)
+Josie Huang (September 1-November 30)
+Jed Kim (September 1-November 30)
+Rina Palta (September 1-November 30)
+Jose Luis Jiménez (September 1-November 30)
+Evelyn Larrubia (September 1-November 30)
+Mae Ryan (September 1-November 30)
+Maya Sugarman (September 1-November 30)
+A Martínez (September 1-November 30)
+Leo Duran (September 1-November 30)
+Laura Krantz (September 1-November 30)
+Jacob Margolis (September 1-November 30)
+Ashley Alvarado (September 1-November 30)
+Michelle Lanz (September 1-November 30)
+Jon White (September 1-November 30)
+Stephen Hoffman (September 1-November 30)
+Gordon Henderson (September 1-November 30)
+Kristen Lepore (September 1-November 30)
 EOS
 
 headers = [
@@ -114,113 +106,33 @@ headers = [
 
 puts "Generating CSV..."
 
-
-# With Bio
-user_ranges   = []
-normal_withbio.split("\n").each do |row|
-  user_range = {}
-
-  match = row.match(byline_regex)
-
-  user_range[:user]  = Bio.find_by_name!(match[:name])
-  user_range[:low]   = Time.parse(match[:start]).beginning_of_day
-  user_range[:high]  = Time.parse(match[:end]).end_of_day
-
-  user_ranges << user_range
-end
-
-# Without Bio
-nobio_ranges = []
-normal_nobio.split("\n").each do |row|
-  user_range = {}
-  match = row.match(byline_regex)
-
-  user_range[:name]  = match[:name]
-  user_range[:low]   = Time.parse(match[:start]).beginning_of_day
-  user_range[:high]  = Time.parse(match[:end]).end_of_day
-
-  nobio_ranges << user_range
-end
-
-# Take Two with Bio
-taketwo_withbio_ranges = []
-taketwo_withbio.split("\n").each do |row|
-  user_range = {}
-  match = row.match(byline_regex)
-
-  user_range[:user]  = Bio.find_by_name!(match[:name])
-  user_range[:low]   = Time.parse(match[:start]).beginning_of_day
-  user_range[:high]  = Time.parse(match[:end]).end_of_day
-
-  taketwo_withbio_ranges << user_range
-end
-
-# Take Two without Bio
-taketwo_nobio_ranges = []
-taketwo_nobio.split("\n").each do |row|
-  user_range = {}
-  match = row.match(byline_regex)
-
-  user_range[:name]  = match[:name]
-  user_range[:low]   = Time.parse(match[:start]).beginning_of_day
-  user_range[:high]  = Time.parse(match[:end]).end_of_day
-
-  taketwo_nobio_ranges << user_range
-end
-
-
-
 rows = []
 
-user_ranges.each do |range|
-  range[:user].bylines
-  .where(content_type: options.classes)
-  .select { |b|
-    b.content.published? &&
-    b.content.published_at.between?(range[:low], range[:high])
-  }
-  .each do |byline|
-    content = byline.content
+names.split("\n").each do |row|
+  match = row.match(byline_regex)
 
-    rows << [
-      content.published_at,
-      content.to_title,
-      content.public_url,
-      range[:user].name
-    ]
+  if !match
+    raise "No match for '#{row}'. Check format."
   end
-end
 
-nobio_ranges.each do |range|
-  ContentByline.where('name like ?', "%#{range[:name]}%")
-  .where(content_type: options.classes)
-  .select { |b|
-    b.content.published? &&
-    b.content.published_at.between?(range[:low], range[:high])
-  }
-  .each do |byline|
-    content = byline.content
+  low    = Time.new(2013, 9, 1).beginning_of_day
+  high   = Time.new(2013, 11, 30).end_of_day
 
-    rows << [
-      content.published_at,
-      content.to_title,
-      content.public_url,
-      range[:name]
-    ]
+
+  bylines = ContentByline.where('name like ?', "%#{match[:name]}%")
+    .where(content_type: options.classes).to_a
+
+  # If there is a bio for this name, add in that bio's bylines
+  if bio = Bio.find_by_name(match[:name])
+    bylines += bio.bylines
+      .where(content_type: options.classes).to_a
   end
-end
 
-taketwo_withbio_ranges.each do |range|
-  range[:user].bylines
-  .where(content_type: options.classes)
-  .reject { |b|
-    b.content.is_a?(ShowSegment) &&
-    b.content.show.slug == "take-two"
-  }
-  .select { |b|
+  bylines.select { |b|
     b.content.published? &&
-    b.content.published_at.between?(range[:low], range[:high])
+    b.content.published_at.between?(low, high)
   }
+  .sort { |a,b| b.created_at <=> a.created_at }
   .each do |byline|
     content = byline.content
 
@@ -228,30 +140,7 @@ taketwo_withbio_ranges.each do |range|
       content.published_at,
       content.to_title,
       content.public_url,
-      range[:user].name
-    ]
-  end
-end
-
-taketwo_nobio_ranges.each do |range|
-  ContentByline.where('name like ?', "%#{range[:name]}%")
-  .where(content_type: options.classes)
-  .reject { |b|
-    b.content.is_a?(ShowSegment) &&
-    b.content.show.slug == "take-two"
-  }
-  .select { |b|
-    b.content.published? &&
-    b.content.published_at.between?(range[:low], range[:high])
-  }
-  .each do |byline|
-    content = byline.content
-
-    rows << [
-      content.published_at,
-      content.to_title,
-      content.public_url,
-      range[:name]
+      match[:name]
     ]
   end
 end
@@ -260,8 +149,11 @@ end
 #----------------------------
 #----------------------------
 
-filename = options.filename || "#{options.fileprefix}-#{Time.now.strftime("%F")}.csv"
+filename = options.filename ||
+  "#{options.fileprefix}-#{Time.now.strftime("%F")}.csv"
+
 filepath = Rails.root.join("log", filename)
+
 CSV.open(filepath, options.filemode, headers: options.headers) do |csv|
   csv << headers if options.headers
 
