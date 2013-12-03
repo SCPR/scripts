@@ -73,7 +73,7 @@ options.blogs.each do |blog|
   blog = Blog.find_by_slug!(blog)
 
   blog.entries.where(
-    "published_at > :low and published_at <= :high", 
+    "published_at > :low and published_at <= :high",
     :low    => options.lower,
     :high   => options.upper
   ).published.reorder("published_at").each do |entry|

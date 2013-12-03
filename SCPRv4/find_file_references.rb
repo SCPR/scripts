@@ -10,10 +10,10 @@ files_base   = "#{app_base}/app/assets/images"
 
 # Which paths to look in, recursively
 SEARCH_PATHS = [
-  "app/assets/javascripts", 
-  "app/assets/stylesheets", 
-  "app/helpers", 
-  "app/presenters", 
+  "app/assets/javascripts",
+  "app/assets/stylesheets",
+  "app/helpers",
+  "app/presenters",
   "app/views"
 ]
 
@@ -50,7 +50,7 @@ Dir.glob("#{files_base}/**/*.*").each do |file_to_find|
   Find.find(app_base).select { |s| relevant_dir(s) }.reject { |s| should_ignore(s) }.each do |app_file|
     file    = File.read(app_file)
     matches = file.scan Pathname.new(file_to_find).basename.to_s
-    
+
     references += matches.size
   end
 

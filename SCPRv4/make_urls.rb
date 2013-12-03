@@ -21,13 +21,13 @@ end
 
 CSV.open(Rails.root.join("log", "hyper-2013-08-13.csv"), "w+", headers: true) do |csv|
   csv << [
-    "Publish Date", 
-    "Headline", 
-    "Summary", 
-    "Byline", 
+    "Publish Date",
+    "Headline",
+    "Summary",
+    "Byline",
     "URL"
   ]
-  
+
   rows.each do |row|
     csv << row
   end
