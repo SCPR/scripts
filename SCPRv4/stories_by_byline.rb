@@ -102,15 +102,16 @@ names.each do |row|
     raise "No match for '#{row}'. Check format."
   end
 
+  name   = match[:name]
   low    = Time.new(2013, 9, 1).beginning_of_day
   high   = Time.new(2013, 11, 30).end_of_day
 
 
-  bylines = ContentByline.where('name like ?', "%#{match[:name]}%")
+  bylines = ContentByline.where('name like ?', "%#{name}%")
     .where(content_type: options.classes).to_a
 
   # If there is a bio for this name, add in that bio's bylines
-  if bio = Bio.find_by_name(match[:name])
+  if bio = Bio.find_by_name(name)
     bylines += bio.bylines
       .where(content_type: options.classes).to_a
   end
@@ -127,7 +128,7 @@ names.each do |row|
       content.published_at,
       content.to_title,
       content.public_url,
-      match[:name]
+      name
     ]
   end
 end
