@@ -40,7 +40,7 @@ OptionParser.new do |opts|
   end
 
   opts.on('-f', '--filename [FILENAME]',
-    "The filename to use. This overrides the prefix option."
+    "The filename to output to. This overrides the prefix option."
   ) do |filename|
     options.filename = filename
   end
