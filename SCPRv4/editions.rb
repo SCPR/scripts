@@ -68,6 +68,7 @@ Edition.where(condition_string,
   :high   => options.upper
 ).published.reorder("published_at").each do |edition|
   rows.push [
+    edition.id,
     edition.title,
     edition.published_at,
     edition.abstracts.count
@@ -78,6 +79,7 @@ filename = "#{options.fileprefix}-#{Time.now.strftime("%F")}.csv"
 filepath = Rails.root.join("log", filename)
 CSV.open(filepath, "w+", headers: true) do |csv|
     csv << [
+    "ID",
     "Title",
     "Publish Timestamp",
     "# Abstracts"
