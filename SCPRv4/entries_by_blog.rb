@@ -24,7 +24,7 @@ OptionParser.new do |opts|
                 "range of dates.\n" \
                 "Output files are placed in the Rails " \
                 "project's log directory.\n" \
-                "Usage: rails r entries_by_blog.rb [options]"
+                "Usage: ruby entries_by_blog.rb [options]"
 
   opts.on('-l', '--lower LOWER',
     "Beginning of date range, in ISO-format (YYYY-MM-DD). Time is assumed " \
