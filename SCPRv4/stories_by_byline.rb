@@ -74,7 +74,7 @@ end.parse!(ARGV)
 
 
 
-byline_regex = /^(?<name>.+?) \((?<start>.+?)-(?<end>.+?)\)$/
+byline_regex = /^(?<name>.+?) \((?<start>.+?) - (?<end>.+?)\)$/
 
 names = File.open(options.datafile)
 
@@ -102,10 +102,9 @@ names.each do |row|
     raise "No match for '#{row}'. Check format."
   end
 
-  name   = match[:name]
-  low    = Time.new(2013, 9, 1).beginning_of_day
-  high   = Time.new(2013, 11, 30).end_of_day
-
+  name        = match[:name]
+  start_date  = Time.parse(match[:start]).beginning_of_day
+  end_date    = Time.parse(match[:end]).end_of_day
 
   bylines = ContentByline.where('name like ?', "%#{name}%")
     .where(content_type: options.classes).to_a
@@ -118,9 +117,9 @@ names.each do |row|
 
   bylines.select { |b|
     b.content.published? &&
-    b.content.published_at.between?(low, high)
+    b.content.published_at.between?(start_date, end_date)
   }
-  .sort { |a,b| b.created_at <=> a.created_at }
+  .sort { |a,b| b.content.published_at <=> a.content.published_at }
   .each do |byline|
     content = byline.content
 
