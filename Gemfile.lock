@@ -1,0 +1,12 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    apachelogregex (0.1.0)
+    chronic (0.10.2)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  apachelogregex
+  chronic
