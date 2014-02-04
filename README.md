@@ -1,6 +1,6 @@
 ## Scripts
 
-We run them, they do things. Mostly used for generating custom CSV reports.
+We run them, they do things.
 
 ![No Nonsense](http://i.imgur.com/eEuWKmy.gif "No Nonsense")
 
