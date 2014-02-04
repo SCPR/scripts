@@ -5,15 +5,16 @@ require 'date'
 require 'json'
 
 oformat = '%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"'
-format = '%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\" %O'
+format  = '%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\" %O'
 # 64.55.111.113 - - [30/Jun/2011:00:01:04 -0700] "GET /law HTTP/1.1" 200 25772 "-" "Mozilla/5.0 (Linux; U; Windows NT 6.1; en-us; dream) DoggCatcher" 25985
 
 oparser = ApacheLogRegex.new(oformat)
 parser = ApacheLogRegex.new(format)
 
-by_day = {}
-by_month = {}
-totals = {}
+by_day            = {}
+by_month          = {}
+totals            = {}
+partial_requests  = {}
 
 SHOWS = [
   'airtalk',
@@ -46,112 +47,88 @@ SHOWS = [
 ]
 
 # populate hashes
-[SHOWS,'segments','other'].flatten.each {|k| by_day[k] = {}; by_month[k] = {}; totals[k] = 0 } 
+[SHOWS,'segments','other'].flatten.each do |k|
+  by_day[k]     = {}
+  by_month[k]   = {}
+  totals[k]     = 0
+end
 
 # build regex
-REGEX = Regexp.new("GET /(audio|podcasts)/(" + SHOWS.map {|k| k }.join('|') + ").*\.mp3\s")
+REGEX = Regexp.new("GET /(audio|podcasts)/(" + SHOWS.join('|') + ").*\.mp3\s")
 
 $stderr.puts("REGEX is #{REGEX}")
 
-ips = {}
-
 File.open(ARGV[0]) do |f|
-  begin 
+  begin
     while l = f.readline()
       # don't bother parsing non-mp3 lines
-      if l !~ /mp3/
-        next
-      end
-      
+      next if l !~ /mp3/
+
       data = parser.parse(l)
-      
+
       if !data
+        puts "Using oparser"
         data = oparser.parse(l)
       end
-            
-      if data
-        # skip non-200 responses
-        if data['%>s'] !~ /20[06]/ || data['%r'] !~ /^GET/
-          next
-        end
 
-        # parse date
-        date = DateTime.strptime(data['%t'],"[%d/%b/%Y:%H:%M:%S %z]")
-        
-        if data['%>s'] == '206'
-          ip = data['%h']
-          
-          if !ips[ ip ]
-            ips[ ip ] = {}
-          end
-          
-          if !ips[ ip ][ data['%r'] ]
-            # first hit...  count it
-            ips[ ip ][ data['%r'] ] = date
-          else
-            if ips[ ip ][ data['%r'] ] >= (date - (60*30))
-              # hit within last 30 minutes...  pass
-              next
-            else
-              ips[ ip ][ data['%r'] ] = date
-            end
-          end
-        end
-        
-        day_key = [date.year,date.month,date.day].join("-")
-        mon_key = [date.year,date.month].join("-")
-        
-        # look for show files
-        if data['%r'] =~ REGEX
-          show = $~[2]
-        
-          # what type of access is this?
-          data['%r'] =~ /GET \/(podcasts|audio)\//
-        
-          type = ($~ && $~[1] == "podcasts") ? :podcast : :ondemand
-        
-          # add to month and day stats
-          if !by_day[show][day_key]
-            by_day[show][day_key] = { :podcast => 0, :ondemand => 0 }
-          end
-        
-          by_day[show][day_key][type] += 1
-        
-          if !by_month[show][mon_key]
-            by_month[show][mon_key] = { :podcast => 0, :ondemand => 0 }
-          end
-        
-          by_month[show][mon_key][type] += 1
-          
-          totals[show] += 1
+      next if !data
+
+      log_status    = data['%>s']
+      log_ip        = data['%h']
+      log_request   = data['%r']
+      log_date      = data['%t']
+
+      # skip non-200/206 responses or non-GET requests
+      next if log_status !~ /20[06]/ || log_request !~ /^GET/
+
+      # parse date
+      date = DateTime.strptime(log_date, "[%d/%b/%Y:%H:%M:%S %z]")
+
+      # For partial content, we don't want to count each request as a
+      # separate logged listen, so we'll only log it once every 30 minutes.
+      if log_status == '206'
+        partial_requests[log_ip] ||= {}
+
+        if partial_requests[ip][request] &&
+        partial_requests[ip][request] >= (date - (60*30))
+          # hit within last 30 minutes...  pass
+          next
         else
-          key = (data['%r'] =~ /audio\/upload/) ? 'segments' : 'other'
-          
-          if !by_day[key][day_key]
-            by_day[key][day_key] = { :ondemand => 1 }
-          else
-            by_day[key][day_key][:ondemand] += 1
-          end
-          
-          if !by_month[key][mon_key]
-            by_month[key][mon_key] = { :ondemand => 1 }
-          else
-            by_month[key][mon_key][:ondemand] += 1
-          end
-          
-          totals[key] += 1
-          
-          if key == 'other'
-            #$stderr.puts data
-          end
+          # first hit...  count it
+          partial_requests[ip][request] = date
         end
-        
-        # status
-        #if i%100 == true
-        #  $stderr.puts [SHOWS,'segments','other'].flatten.map { |k| totals[k] }.join("\t")
-        #end
-        
-        #i += 1
+      end
+
+      day_key = [date.year, date.month, date.day].join("-")
+      mon_key = [date.year, date.month].join("-")
+
+      # look for show files
+      if request =~ REGEX
+        show = $~[2]
+
+        # what type of access is this?
+        requested_type = request.match(/GET \/(podcasts|audio)\//)[1]
+        type = (requested_type == "podcasts") ? :podcast : :ondemand
+
+        # add to month and day stats
+        by_day[show][day_key] ||= { podcast: 0, ondemand: 0 }
+        by_month[show][mon_key] ||= { :podcast => 0, :ondemand => 0 }
+
+        by_day[show][day_key][type] += 1
+        by_month[show][mon_key][type] += 1
+
+        totals[show] += 1
+
+      else
+        key = (request =~ /audio\/upload/) ? 'segments' : 'other'
+
+        by_day[key][day_key] ||= { ondemand: 0 }
+        by_month[key][mon_key] ||= { ondemand: 0 }
+
+        by_day[key][day_key][:ondemand] += 1
+        by_month[key][mon_key][:ondemand] += 1
+
+        totals[key] += 1
       end
     end
   rescue EOFError
