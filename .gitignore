@@ -1,4 +1,5 @@
-/SCPRv4/data/*.txt
-/SCPRv4/data/*.log
-/AudioVision/data/*.txt
-/AudioVision/data/*.log
+.DS_Store
+*/data/*.log
+*/data/*.txt
+*/parsed/*.txt
+*/parsed/*.log
