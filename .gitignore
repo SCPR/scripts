@@ -3,6 +3,7 @@
 *.log.*
 *.gz
 *.gz.*
+*.csv
 
 */logs/*.txt
 */data/*.txt
