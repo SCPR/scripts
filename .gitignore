@@ -4,5 +4,6 @@
 *.gz
 *.gz.*
 
+*/logs/*.txt
 */data/*.txt
 */parsed/*.txt
