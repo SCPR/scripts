@@ -5,7 +5,17 @@ We run them, they do things.
 ![No Nonsense](http://i.imgur.com/eEuWKmy.gif "No Nonsense")
 
 
-### Running scripts
+### Running Bash scripts (log parsing)
+Generally, `./script_name.sh` will be enough.
+
+For some scripts you'll need to specify the log file to parse, and the output filename:
+
+```bash
+./generate_audio_report.sh logs/media-access.log 2014-01.csv
+```
+
+
+### Running Ruby scripts
 
 Ideally, one could run any of these scripts from the command line, customizing
 the output just by modifying the arguments. Run `./script_name.rb -h` to see
