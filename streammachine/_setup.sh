@@ -14,7 +14,7 @@ FILENAME="StreamMachine-${FN_DATE}"
 LOG_DIR=${SRC_DIR}/logs
 PARSED_DIR=${SRC_DIR}/parsed
 FULL_LOG=$LOG_DIR/${FILENAME}_consolidated.log
-CSV_LOG=${PARSED_DIR}/parsed_${FILENAME}.csv
+CSV_LOG=${PARSED_DIR}/parsed_${FILENAME}_consolidated.csv
 
 
 if [ ! -d "${LOG_DIR}" ]; then
