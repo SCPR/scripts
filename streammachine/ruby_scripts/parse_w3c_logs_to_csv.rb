@@ -58,7 +58,7 @@ ARGV.each do |fname|
 
         # parse date and subtract listened seconds
         time = (DateTime.strptime("#{date} #{end_time}","%F %T").to_time.utc - duration).strftime("%T")
-        line = [date, duration, ip, ua]
+        line = [date + " " + time, duration, ip, ua]
         output << line
       end
     rescue EOFError

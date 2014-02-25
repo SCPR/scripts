@@ -1,6 +1,6 @@
 #!/usr/bin/ruby
 
-require 'date'
+require 'time'
 require 'json'
 require 'csv'
 
@@ -20,7 +20,7 @@ dates = {}
 
 ARGV.each do |file|
   CSV.foreach(file, headers: :first_row, encoding: "ASCII-8BIT") do |row|
-    date      = Time.at(row["Date"].to_i)
+    date      = Time.parse(row["Date"])
     date_key  = date.strftime("%F")
 
     dates[date_key] ||= STARTS_FOR_APP.dup
