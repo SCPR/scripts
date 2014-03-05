@@ -1,12 +1,15 @@
+SCRIPT = "image-references"
+APP = 'scprv4'
+
+load File.expand_path("../../util/setup.rb", __FILE__)
+
 require 'find'
 require 'pathname'
 
 ##
 # Given a directory, loop through all of its files recursively,
 # and then search the project for references to each file.
-name         = "image-references"
-app_base     = "/Users/bryan/projects/SCPRv4"
-files_base   = "#{app_base}/app/assets/images"
+files_base = Rails.root.join("app/assets/images").to_s
 
 # Which paths to look in, recursively
 SEARCH_PATHS = [
@@ -24,7 +27,7 @@ end
 
 # Which files should we ignore?
 def should_ignore(s)
-  s.match(/\.DS_Store/) || !s.match(/\./)
+  s.match(/\.DS_Store/) || !s.match(/\./) || s.match(/\/i\//)
 end
 
 
@@ -32,7 +35,7 @@ end
 #----------------------------------
 
 # Logger
-logger = File.new("#{app_base}/log/#{name}.log", "w+")
+logger = $stdout#File.new(Rails.root.join("log/#{SCRIPT}.log"), "w+")
 
 # Keep track of which files have references and not
 with_references    = []
@@ -47,7 +50,7 @@ Dir.glob("#{files_base}/**/*.*").each do |file_to_find|
 
   # Loop through each of the files in this project and look for this file.
   # Add the number of matches to references
-  Find.find(app_base).select { |s| relevant_dir(s) }.reject { |s| should_ignore(s) }.each do |app_file|
+  Find.find(Rails.root.to_s).select { |s| relevant_dir(s) }.reject { |s| should_ignore(s) }.each do |app_file|
     file    = File.read(app_file)
     matches = file.scan Pathname.new(file_to_find).basename.to_s
 
