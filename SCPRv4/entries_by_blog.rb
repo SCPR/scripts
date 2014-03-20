@@ -87,7 +87,7 @@ options.blogs.each do |blog|
 end
 
 filename = "#{options.fileprefix}-#{Time.now.strftime("%F")}.csv"
-filepath = Rails.root.join("log", filename)
+filepath = "output/#{filename}"
 CSV.open(filepath, "w+") do |csv|
   rows.each do |row|
     csv << row
