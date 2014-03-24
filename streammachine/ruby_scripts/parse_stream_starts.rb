@@ -18,9 +18,25 @@ STARTS_FOR_APP[:TOTAL] = 0
 
 dates = {}
 
+start_time  = nil
+end_time    = nil
+
+if ENV['START'] && ENV['END']
+  # START="2014-03-22 02:00" END="2014-03-22 07:00"
+  start_time = Time.parse(ENV['START'])
+  end_time   = Time.parse(ENV['END'])
+
+  $stderr.puts "Limiting to #{start_time} - #{end_time}"
+end
+
 ARGV.each do |file|
   CSV.foreach(file, headers: :first_row, encoding: "ASCII-8BIT") do |row|
     date      = Time.parse(row["Date"])
+
+    if start_time && end_time
+      next if date <= start_time || date > end_time
+    end
+
     date_key  = date.strftime("%F")
 
     dates[date_key] ||= STARTS_FOR_APP.dup
