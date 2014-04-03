@@ -36,8 +36,12 @@ C = {
   :unknown          => "unknown"
 }
 
+# For the numbers CSV, we want to restrict the sources to just these few.
+ALLOWED_SOURCES = %w{ podcast api website unknown rss }
+
 # We still need to load these for the fallback context inference.
 SHOWS = File.open("shows.txt").each_line.map { |l| l.chomp("\n") }.reject(&:empty?)
+all_contexts = {}
 
 # We want to keep track of partial requests so we don't log them multiple times
 partial_requests = {}
@@ -161,10 +165,31 @@ File.open(ARGV[0]).each_line do |line|
     context = C[:unknown]
   end
 
+  # Log numbers
+  all_contexts[context] ||= {}
+  all_contexts[context][source] ||= 0
+  all_contexts[context][source] += 1
+
   # Write to CSV
-  output << [source, context]
+  # output << [source, context]
 end
 
 # Close our IO
 output.close
 failure_output.close
+
+
+# Write final numbers.
+all_sources = all_contexts.values.map(&:keys).flatten.uniq.select { |s|
+  ALLOWED_SOURCES.include? s
+}
+
+final_nums = CSV.open(
+  File.join("parsed", "numbers-#{fn_date}.csv"), "w",
+  :headers => ["Context", *all_sources],
+  :write_headers => true
+) do |csv|
+  all_contexts.each do |context, source_counts|
+    csv << [context, *all_sources.map { |s| source_counts[s] || 0 }]
+  end
+end
