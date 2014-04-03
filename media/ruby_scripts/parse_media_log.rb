@@ -4,49 +4,91 @@ require 'apachelogregex'
 require 'date'
 require 'json'
 require 'csv'
+require 'uri'
 
-REGEX = Regexp.new("GET /(?<type>audio|podcasts)/(?<show>.+?)/.+\.mp3\s")
+# Constants to help the GC out.
+C = {
+  :mp3_re           => /mp3/,
+  :request_re       => /GET (?<path>.+?)\s/,
+  :podcast_re       => /\/podcasts\//,
+  :audio_re         => /\/audio\//,
+  :amp_re           => /&amp;/,
+  :media_url        => "http://media.scpr.org",
+  :status_partial   => '206',
+  :allowed_status   => ['200', '206'],
+  :date_format      => "[%d/%b/%Y:%H:%M:%S %z]",
+  :data_status      => '%>s',
+  :data_ip          => '%h',
+  :data_req         => '%r',
+  :data_date        => '%t',
+  :data_ua          => '%{User-Agent}i',
+  :data_referer     => '%{Referer}i',
+  :amp              => '&',
+  :eq               => '=',
+  :mobile_ua        => /(Android|iPad|iPhone)/,
+  :via              => "via",
+  :source           => "source",
+  :context          => "context",
+  :podcast          => "podcast",
+  :website          => "website",
+  :api              => "api",
+  :scpr_org         => "www.scpr.org",
+  :unknown          => "unknown"
+}
+
+# We still need to load these for the fallback context inference.
 SHOWS = File.open("shows.txt").each_line.map { |l| l.chomp("\n") }.reject(&:empty?)
 
-# populate hashes
-month_keys        = []
-by_month          = {}
-totals            = {}
-partial_requests  = {}
+# We want to keep track of partial requests so we don't log them multiple times
+partial_requests = {}
 
-[*SHOWS, 'other'].each do |k|
-  by_month[k]   = {}
-end
-
-
-format = '%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"'
 # 64.55.111.113 - - [30/Jun/2011:00:01:04 -0700] "GET /law HTTP/1.1" 200 \
 # 25772 "-" "Mozilla/5.0 (Linux; U; Windows NT 6.1; en-us; dream) DoggCatcher"
-
+format = '%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"'
 parser = ApacheLogRegex.new(format)
 
+fn_date = "#{Time.now.year}-#{Time.now.month - 1}"
+output = CSV.open(
+  File.join("parsed", "audio-requests-#{fn_date}.csv"), "w",
+  :headers => ["Audio Source", "Audio Context"],
+  :write_headers => true
+)
+
+failure_output = CSV.open(
+  File.join("logs", "failures.csv"), "w",
+  :headers => ["Missing Info", "Log line"],
+  :write_headers => true
+)
 
 File.open(ARGV[0]).each_line do |line|
   # don't bother parsing non-mp3 lines
-  next if line !~ /mp3/
+  next if line !~ C[:mp3_re]
 
+  # Extract the request information from the log line.
+  # If the line can't be parsed by apachelogregex, move on.
   data = parser.parse(line)
   next if !data
 
-  log_status    = data['%>s']
-  log_ip        = data['%h']
-  log_request   = data['%r']
-  log_date      = data['%t']
+  log_status    = data[C[:data_status]]
+  log_ip        = data[C[:data_ip]]
+  log_request   = data[C[:data_req]]
+  log_date      = data[C[:data_date]]
+  log_ua        = data[C[:data_ua]]
+  log_referer   = data[C[:data_referer]]
 
   # skip non-200/206 responses or non-GET requests
-  next if log_status !~ /20[06]/ || log_request !~ /^GET/
+  next unless C[:allowed_status].include?(log_status)
+
+  # Match the request to extract the path (and make sure it's valid)
+  match = log_request.match(C[:request_re])
+  next if !match
 
   # parse date
-  date = DateTime.strptime(log_date, "[%d/%b/%Y:%H:%M:%S %z]")
+  date = DateTime.strptime(log_date, C[:date_format])
 
   # For partial content, we don't want to count each request as a
   # separate logged listen, so we'll only log it once every 30 minutes.
-  if log_status == '206'
+  if log_status == C[:status_partial]
     partial_requests[log_ip] ||= {}
 
     if partial_requests[log_ip][log_request] &&
@@ -59,40 +101,70 @@ File.open(ARGV[0]).each_line do |line|
     end
   end
 
-  # look for show files
-  match = log_request.match(REGEX)
-  next if !match
+  # Get the URI. We need to append the media URL to it for reliable parsing.
+  uri_str = "#{C[:media_url]}#{match[:path]}"
+  uri = URI.parse(uri_str)
+  source, context = nil
 
-  # Any podcast should be using the "podcasts" URL, so we can assume
-  # that any requests to /podcasts is a podcast access.
-  # Otherwise, we assume it's on-demand audio.
-  # This is still a safe assumption.
-  type = (match[:type] == "podcasts") ? :podcast : :ondemand
+  # If this URL had a query string, then parse it out to extract source/context.
+  if uri.query
+    uri.query.gsub!(C[:amp_re], C[:amp])
 
-  # This line should be counted for a specific show.
-  # This is no longer an accurate way to count podcast audio.
-  # The new parsing script fixes this problem.
-  key = SHOWS.include?(match[:show]) ? match[:show] : 'other'
+    params = uri.query.split(C[:amp]).map { |p|
+      p.split(C[:eq])
+    }.reduce({}) { |hsh, p|
+      hsh.merge!(p[0] => p[1])
+    }
 
-  month_key = date.strftime("%Y-%m")
-  # Keep track of this key so we can use it for headers in the CSV.
-  month_keys << month_key unless month_keys.include?(month_key)
-
-  # add to month and day stats
-  if !by_month[key][month_key]
-    by_month[key][month_key] = { podcast: 0, ondemand: 0 }
+    source  = params[C[:via]]     # website, podcast, api, etc.
+    context = params[C[:context]] # airtalk, offramp, etc.
   end
 
-  by_month[key][month_key][type] += 1
-end
-
-CSV($stdout,
-  :headers          => ["Show", "Type", *month_keys],
-  :write_headers    => true
-) do |csv|
-  by_month.each do |show, data|
-    [:podcast, :ondemand].each do |type|
-      csv << [show, type, *month_keys.map { |k| data[k] ? data[k][type] : 0 }]
+  # Try to infer the source from the log line if it wasn't set by params
+  if !source
+    # If this was a request to /podcasts/, then set the source to "podcast"
+    # If not, then we need to try to figure out where it's coming from
+    # based on the user-agent.
+    if uri_str.match(C[:podcast_re])
+      source = C[:podcast]
+    elsif uri_str.match(C[:audio_re])
+      # If this was from a mobile something, mark it as an API request.
+      if log_ua.match(C[:mobile_ua])
+        source = C[:api]
+      else
+        # It was *probably* the website if we got here.
+        # If not, we should count it anyways.
+        if log_referer.match(C[:scpr_org])
+          source = C[:website]
+        end
+      end
     end
   end
+
+
+  # Try to infer the context from the log line if it wasn't set by params
+  if !context
+    # Search the log line for anything matching one of our shows.
+    context = SHOWS.find { |s| line.match(s) }
+  end
+
+
+  # Finally, just mark them as "unknown" if we can't infer anything.
+  # Log these unknown entries to logs/failures.csv with the log line.
+  if !source
+    failure_output << [C[:source], line]
+    source = C[:unknown]
+  end
+
+  if !context
+    failure_output << [C[:context], line]
+    context = C[:unknown]
+  end
+
+  # Write to CSV
+  output << [source, context]
 end
+
+# Close our IO
+output.close
+failure_output.close
