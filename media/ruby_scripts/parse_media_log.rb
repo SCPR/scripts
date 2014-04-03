@@ -136,8 +136,7 @@ File.open(ARGV[0]).each_line do |line|
       if log_ua.match(C[:mobile_ua])
         source = C[:api]
       else
-        # It was *probably* the website if we got here.
-        # If not, we should count it anyways.
+        # Check the referer to see if it came from SCPR.org
         if log_referer.match(C[:scpr_org])
           source = C[:website]
         end
@@ -148,7 +147,8 @@ File.open(ARGV[0]).each_line do |line|
 
   # Try to infer the context from the log line if it wasn't set by params
   if !context
-    # Search the log line for anything matching one of our shows.
+    # In a last-ditch effort, we'll search the log line for anything
+    # resembling one of our show names.
     context = SHOWS.find { |s| line.match(s) }
   end
 
