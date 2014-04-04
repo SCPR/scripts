@@ -38,6 +38,7 @@ C = {
 
 # For the numbers CSV, we want to restrict the sources to just these few.
 ALLOWED_SOURCES = %w{ podcast api website unknown rss }
+$stdout.puts "Sources: #{ALLOWED_SOURCES}. Other sources will be ignored."
 
 # We still need to load these for the fallback context inference.
 SHOWS = File.open("shows.txt").each_line.map { |l| l.chomp("\n") }.reject(&:empty?)
@@ -171,7 +172,7 @@ File.open(ARGV[0]).each_line do |line|
   all_contexts[context][source] += 1
 
   # Write to CSV
-  # output << [source, context]
+  output << [source, context]
 end
 
 # Close our IO
