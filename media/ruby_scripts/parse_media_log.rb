@@ -52,13 +52,6 @@ partial_requests = {}
 format = '%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"'
 parser = ApacheLogRegex.new(format)
 
-fn_date = "#{Time.now.year}-#{Time.now.month - 1}"
-output = CSV.open(
-  File.join("parsed", "audio-requests-#{fn_date}.csv"), "w",
-  :headers => ["Audio Source", "Audio Context"],
-  :write_headers => true
-)
-
 failure_output = CSV.open(
   File.join("logs", "failures.csv"), "w",
   :headers => ["Missing Info", "Log line"],
@@ -170,13 +163,9 @@ File.open(ARGV[0]).each_line do |line|
   all_contexts[context] ||= {}
   all_contexts[context][source] ||= 0
   all_contexts[context][source] += 1
-
-  # Write to CSV
-  output << [source, context]
 end
 
 # Close our IO
-output.close
 failure_output.close
 
 
@@ -185,8 +174,10 @@ all_sources = all_contexts.values.map(&:keys).flatten.uniq.select { |s|
   ALLOWED_SOURCES.include? s
 }
 
+fn_date = "#{Time.now.year}-#{Time.now.month - 1}"
+
 final_nums = CSV.open(
-  File.join("parsed", "numbers-#{fn_date}.csv"), "w",
+  File.join("parsed", "audio-requests-#{fn_date}.csv"), "w",
   :headers => ["Context", *all_sources],
   :write_headers => true
 ) do |csv|
