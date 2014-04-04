@@ -101,22 +101,29 @@ File.open(ARGV[0]).each_line do |line|
 
   # Get the URI. We need to append the media URL to it for reliable parsing.
   uri_str = "#{C[:media_url]}#{match[:path]}"
-  uri = URI.parse(uri_str)
   source, context = nil
 
-  # If this URL had a query string, then parse it out to extract source/context.
-  if uri.query
-    uri.query.gsub!(C[:amp_re], C[:amp])
+  begin
+    # If we can't parse the URI, then we'll skip trying to read the
+    # query parameters and just search the URI string.
+    uri = URI.parse(uri_str)
 
-    params = uri.query.split(C[:amp]).map { |p|
-      p.split(C[:eq])
-    }.reduce({}) { |hsh, p|
-      hsh.merge!(p[0] => p[1])
-    }
+    # If this URL had a query string, then parse it out to extract source/context.
+    if uri.query
+      uri.query.gsub!(C[:amp_re], C[:amp])
 
-    source  = params[C[:via]]     # website, podcast, api, etc.
-    context = params[C[:context]] # airtalk, offramp, etc.
+      params = uri.query.split(C[:amp]).map { |p|
+        p.split(C[:eq])
+      }.reduce({}) { |hsh, p|
+        hsh.merge!(p[0] => p[1])
+      }
+
+      source  = params[C[:via]]     # website, podcast, api, etc.
+      context = params[C[:context]] # airtalk, offramp, etc.
+    end
+  rescue URI::InvalidURIError
   end
+
 
   # Try to infer the source from the log line if it wasn't set by params
   if !source
