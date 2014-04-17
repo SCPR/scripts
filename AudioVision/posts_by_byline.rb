@@ -130,7 +130,7 @@ end
 filename = options.filename ||
   "#{options.fileprefix}-#{Time.now.strftime("%F")}.csv"
 
-filepath = Rails.root.join("log", filename)
+filepath = File.expand_path("../log/#{filename}", __FILE__)
 
 CSV.open(filepath, options.filemode, headers: options.headers) do |csv|
   csv << headers if options.headers
