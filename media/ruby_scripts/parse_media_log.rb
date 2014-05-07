@@ -42,7 +42,11 @@ $stdout.puts "Sources: #{ALLOWED_SOURCES}. Other sources will be ignored."
 
 # We still need to load these for the fallback context inference.
 SHOWS = File.open("shows.txt").each_line.map { |l| l.chomp("\n") }.reject(&:empty?)
-all_contexts = {}
+all_contexts      = {}
+failures          = []
+
+# Keep track of user agents
+all_user_agents = {}
 
 # We want to keep track of partial requests so we don't log them multiple times
 partial_requests = {}
@@ -51,12 +55,6 @@ partial_requests = {}
 # 25772 "-" "Mozilla/5.0 (Linux; U; Windows NT 6.1; en-us; dream) DoggCatcher"
 format = '%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"'
 parser = ApacheLogRegex.new(format)
-
-failure_output = CSV.open(
-  File.join("logs", "failures.csv"), "w",
-  :headers => ["Missing Info", "Log line"],
-  :write_headers => true
-)
 
 File.open(ARGV[0]).each_line do |line|
   # don't bother parsing non-mp3 lines
@@ -132,6 +130,7 @@ File.open(ARGV[0]).each_line do |line|
     # based on the user-agent.
     if uri_str.match(C[:podcast_re])
       source = C[:podcast]
+
     elsif uri_str.match(C[:audio_re])
       # If this was from a mobile something, mark it as an API request.
       if log_ua.match(C[:mobile_ua])
@@ -157,14 +156,18 @@ File.open(ARGV[0]).each_line do |line|
   # Finally, just mark them as "unknown" if we can't infer anything.
   # Log these unknown entries to logs/failures.csv with the log line.
   if !source
-    failure_output << [C[:source], line]
+    failures << [C[:source], line]
     source = C[:unknown]
   end
 
   if !context
-    failure_output << [C[:context], line]
+    failures << [C[:context], line]
     context = C[:unknown]
   end
+
+  # Tally the user agent
+  all_user_agents[log_ua] ||= 0
+  all_user_agents[log_ua] += 1
 
   # Log numbers
   all_contexts[context] ||= {}
@@ -172,19 +175,21 @@ File.open(ARGV[0]).each_line do |line|
   all_contexts[context][source] += 1
 end
 
-# Close our IO
-failure_output.close
+$stdout.puts "Finished parsing."
 
 
-# Write final numbers.
+fn_date = "#{Time.now.year}-#{Time.now.month - 1}"
+
+
+#####
+fn = File.join("parsed", "audio-requests-#{fn_date}.csv")
+$stdout.puts "Writing Numbers log to #{fn}..."
+
 all_sources = all_contexts.values.map(&:keys).flatten.uniq.select { |s|
   ALLOWED_SOURCES.include? s
 }
 
-fn_date = "#{Time.now.year}-#{Time.now.month - 1}"
-
-final_nums = CSV.open(
-  File.join("parsed", "audio-requests-#{fn_date}.csv"), "w",
+CSV.open(fn, "w",
   :headers => ["Context", *all_sources],
   :write_headers => true
 ) do |csv|
@@ -192,3 +197,34 @@ final_nums = CSV.open(
     csv << [context, *all_sources.map { |s| source_counts[s] || 0 }]
   end
 end
+#####
+
+#####
+fn = File.join("logs", "failures-#{fn_date}.csv")
+$stdout.puts "Writing Failures log to #{fn}..."
+
+CSV.open(fn, "w",
+  :headers => ["Missing Info", "Log line"],
+  :write_headers => true
+) do |csv|
+  failures.each do |failure|
+    csv << failure
+  end
+end
+#####
+
+#####
+fn = File.join("logs", "user-agents-#{fn_date}.csv")
+$stdout.puts "Writing User Agent log to #{fn}..."
+
+CSV.open(fn, "w",
+  :headers => ["User Agent", "Count"],
+  :write_headers => true
+) do |csv|
+  all_user_agents.each do |ua, count|
+    csv << [ua, count]
+  end
+end
+#####
+
+$stdout.puts "Finished!"
