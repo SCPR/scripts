@@ -165,9 +165,12 @@ File.open(ARGV[0]).each_line do |line|
     context = C[:unknown]
   end
 
-  # Tally the user agent
-  all_user_agents[log_ua] ||= 0
-  all_user_agents[log_ua] += 1
+  # Jason only wants to count Podcast user agents...
+  if source == C[:podcast]
+    # Tally the user agent
+    all_user_agents[log_ua] ||= 0
+    all_user_agents[log_ua] += 1
+  end
 
   # Log numbers
   all_contexts[context] ||= {}
