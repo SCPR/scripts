@@ -85,15 +85,15 @@ File.open(ARGV[0]).each_line do |line|
   # For partial content, we don't want to count each request as a
   # separate logged listen, so we'll only log it once every 30 minutes.
   if log_status == C[:status_partial]
-    partial_requests[log_ua] ||= {}
+    partial_requests[log_ip] ||= {}
 
-    if partial_requests[log_ua][log_request] &&
-    partial_requests[log_ua][log_request] >= (date - (60*30))
+    if partial_requests[log_ip][log_request] &&
+    partial_requests[log_ip][log_request] >= (date - (60*30))
       # hit within last 30 minutes...  pass
       next
     else
       # first hit...  count it
-      partial_requests[log_ua][log_request] = date
+      partial_requests[log_ip][log_request] = date
     end
   end
 
