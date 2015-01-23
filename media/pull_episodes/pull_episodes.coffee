@@ -4,9 +4,18 @@ fs              = require "fs"
 tz              = require "timezone"
 
 argv = require('yargs')
+    .demand(['show','start','end'])
+    .describe
+        start:      "Start Date"
+        end:        "End Date"
+        ep_start:   "Start Date for Episodes"
+        ep_end:     "End Date for Episodes"
+        zone:       "Timezone"
     .default
-        start_date: null
-        end_date:   null
+        start:      null
+        end:        null
+        ep_start:   null
+        ep_end:     null
         zone:       "America/Los_Angeles"
     .argv
 
@@ -14,8 +23,10 @@ zone = tz(require("timezone/#{argv.zone}"))
 
 es = new elasticsearch.Client host:"logstash.i.scprdev.org:9200" #, log:{type:"stdio",level:"trace"}
 
-start_date = zone(argv.start_date,argv.zone) if argv.start_date
-end_date = zone(argv.end_date,argv.zone) if argv.end_date
+start_date  = zone(argv.start,argv.zone)
+end_date    = zone(argv.end,argv.zone)
+
+console.error "Stats: #{ start_date } - #{ end_date }"
 
 #----------
 
@@ -101,21 +112,29 @@ class Deduplicator extends require("stream").Transform
     _transform: (obj,encoding,cb) ->
         #console.log "dedup got ", obj
 
-        # key off a hash of ip, request and agent
-        key = new Buffer("#{obj.ip}--#{obj.request}--#{obj.agent}").toString("base64")
-
-        if @seen[key]
-            # when?
-            if (obj.timestamp - @seen[key]) < 60*5*1000 # 5 minutes
-                # too recently... don't write a new entry
+        if obj.uuid
+            if @seen[obj.uuid]
+                # uuid seen... pass...
             else
-                # go ahead and write
                 @push obj
-        else
-            @push obj
+                @seen[obj.uuid] = true
 
-        # either way, note the new timestamp
-        @seen[key] = obj.timestamp
+        else
+            # key off a hash of ip, request and agent
+            key = new Buffer("#{obj.ip}--#{obj.request}--#{obj.agent}").toString("base64")
+
+            if @seen[key]
+                # when?
+                if (obj.timestamp - @seen[key]) < 60*5*1000 # 5 minutes
+                    # too recently... don't write a new entry
+                else
+                    # go ahead and write
+                    @push obj
+            else
+                @push obj
+
+            # either way, note the new timestamp
+            @seen[key] = obj.timestamp
 
         cb()
 
@@ -179,6 +198,9 @@ class EpisodePuller extends require("stream").Transform
                     filter:
                         and:[
                             term:
+                                "nginx_host.raw":"media.scpr.org"
+                        ,
+                            term:
                                 "verb.raw":"GET"
                         ,
                             terms:
@@ -190,6 +212,7 @@ class EpisodePuller extends require("stream").Transform
                         ,
                             terms:
                                 "request_path.raw":["/audio/#{ep.file}","/podcasts/#{ep.file}"]
+                                _cache: false
                         ]
             sort: [ "@timestamp":"asc" ]
             size: 1000
@@ -208,7 +231,11 @@ class EpisodePuller extends require("stream").Transform
                     context:    r._source.qcontext
                     request:    r._source.request
 
-        es.search index:@_indices(ep_date), body:body, type:"nginx", scroll:"5s", (err,results) ->
+        es.search index:@_indices(ep_date), body:body, type:"nginx", scroll:"25s", (err,results) ->
+            if err
+                console.error "ES ERROR: ", err
+                return false
+
             total_results = results.hits.total
             remaining_results = total_results - 1000
 
@@ -223,9 +250,16 @@ class EpisodePuller extends require("stream").Transform
                         return rcb()
 
                     # do our scroll query
-                    es.scroll scroll:"5s", body:scroll_id, (err,results) ->
+                    es.scroll scroll:"25s", body:scroll_id, (err,results) ->
+                        if err
+                            console.error "Scroll error: #{err}"
+
                         #console.error "scroll: ", err, results
                         console.error "Scroll got ", results.hits.hits.length
+
+                        if results.hits.hits.length == 0
+                            # we'll assume we need to move on
+                            return rcb()
 
                         remaining_results -= results.hits.hits.length
 
@@ -262,6 +296,5 @@ ep_parser = csv.parse {}, (err,data) ->
 
     ep_puller.end()
 
-fs.createReadStream(argv.episodes).pipe(ep_parser)
 
 
